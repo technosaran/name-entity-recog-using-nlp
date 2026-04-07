@@ -90,37 +90,61 @@ def main():
     
     if st.button("Analyze", type="primary"):
         if text_input:
-            doc = nlp(text_input)
+            # Preprocess if enabled
+            processed_text = preprocess_text(text_input) if use_preprocessing else text_input
             
-            # Filter entities
-            filtered_ents = [ent for ent in doc.ents if ent.label_ in show_labels]
-            
-            # Display visualization
-            st.subheader("Visual Representation")
-            if filtered_ents:
-                doc.ents = filtered_ents
-                html = displacy.render(doc, style="ent", jupyter=False)
-                st.markdown(html, unsafe_allow_html=True)
-            else:
-                st.info("No entities found with selected filters")
-            
-            # Display table
-            st.subheader("Extracted Entities")
-            if filtered_ents:
-                data = []
-                for ent in filtered_ents:
-                    data.append({
-                        "Entity": ent.text,
-                        "Type": ent.label_,
-                        "Description": spacy.explain(ent.label_)
-                    })
-                st.table(data)
-            
-            # Stats
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Total Entities", len(filtered_ents))
-            col2.metric("Unique Types", len(set(ent.label_ for ent in filtered_ents)))
-            col3.metric("Words", len(doc))
+            with st.spinner("Analyzing text..."):
+                doc = nlp(processed_text)
+                
+                # Calculate confidence and filter entities
+                entities_with_conf = []
+                for ent in doc.ents:
+                    if ent.label_ in show_labels:
+                        conf = calculate_confidence(ent)
+                        if conf >= confidence_threshold:
+                            entities_with_conf.append((ent, conf))
+                
+                filtered_ents = [ent for ent, _ in entities_with_conf]
+                
+                # Display visualization
+                st.subheader("Visual Representation")
+                if filtered_ents:
+                    doc.ents = filtered_ents
+                    html = displacy.render(doc, style="ent", jupyter=False)
+                    st.markdown(html, unsafe_allow_html=True)
+                else:
+                    st.info("No entities found with selected filters")
+                
+                # Display table with confidence
+                st.subheader("Extracted Entities")
+                if entities_with_conf:
+                    data = []
+                    for ent, conf in entities_with_conf:
+                        data.append({
+                            "Entity": ent.text,
+                            "Type": ent.label_,
+                            "Confidence": f"{conf:.2%}",
+                            "Position": f"{ent.start_char}-{ent.end_char}",
+                            "Description": spacy.explain(ent.label_)
+                        })
+                    df = pd.DataFrame(data)
+                    st.dataframe(df, use_container_width=True)
+                    
+                    # Download option
+                    csv = df.to_csv(index=False)
+                    st.download_button(
+                        label="Download Results as CSV",
+                        data=csv,
+                        file_name="entities.csv",
+                        mime="text/csv"
+                    )
+                
+                # Stats
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Total Entities", len(filtered_ents))
+                col2.metric("Unique Types", len(set(ent.label_ for ent in filtered_ents)))
+                col3.metric("Words", len(doc))
+                col4.metric("Avg Confidence", f"{sum(c for _, c in entities_with_conf) / len(entities_with_conf):.2%}" if entities_with_conf else "N/A")
         else:
             st.warning("Please enter some text")
     

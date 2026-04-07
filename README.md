@@ -13,7 +13,11 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
-python -m spacy download en_core_web_sm
+
+# Download spaCy models (choose based on your needs)
+python -m spacy download en_core_web_sm   # Small, fast
+python -m spacy download en_core_web_md   # Medium, balanced
+python -m spacy download en_core_web_lg   # Large, most accurate
 ```
 
 ## Usage
