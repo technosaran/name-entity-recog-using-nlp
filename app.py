@@ -6,10 +6,56 @@ import re
 
 # Page config
 st.set_page_config(
-    page_title="Entity Recognition",
-    page_icon="🔍",
+    page_title="Premium Entity Recognition",
+    page_icon="🤖",
     layout="wide"
 )
+
+# Custom CSS for Premium Look
+st.markdown("""
+<style>
+    .main {
+        background-color: #0e1117;
+    }
+    .stApp {
+        background: radial-gradient(circle at top right, #1e293b, #0f172a);
+    }
+    .stSidebar {
+        background-color: rgba(30, 41, 59, 0.7) !important;
+        backdrop-filter: blur(10px);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    h1 {
+        background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800 !important;
+    }
+    .stButton>button {
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
+        color: white;
+        border: none;
+        padding: 0.5rem 2rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+    .css-1r6slb0 { /* Sidebar width */
+        width: 350px;
+    }
+    .entity-box {
+        padding: 1rem;
+        border-radius: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 1rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 @st.cache_resource
 def load_model(model_name):
@@ -17,12 +63,19 @@ def load_model(model_name):
     try:
         return spacy.load(model_name)
     except:
-        st.warning(f"Model {model_name} not found. Trying en_core_web_sm...")
-        try:
-            return spacy.load("en_core_web_sm")
-        except:
-            st.error("No model found. Run: python -m spacy download en_core_web_sm")
-            return None
+        st.sidebar.error(f"⚠️ Model {model_name} could not be loaded.")
+        # Try fallback order
+        fallbacks = ["en_core_web_trf", "en_core_web_lg", "en_core_web_sm"]
+        for fb in fallbacks:
+            if fb != model_name:
+                try:
+                    m = spacy.load(fb)
+                    st.sidebar.info(f"🔄 Fell back to {fb}")
+                    return m
+                except:
+                    continue
+        st.error("❌ No models found. Please download one using the command line.")
+        return None
 
 def preprocess_text(text):
     """Clean and normalize text."""
@@ -52,10 +105,18 @@ def main():
     
     # Model selection
     model_choice = st.sidebar.selectbox(
-        "Select Model",
-        options=["en_core_web_lg", "en_core_web_md", "en_core_web_sm"],
-        help="Larger models = better accuracy but slower"
+        "Select AI Model",
+        options=["en_core_web_trf", "en_core_web_lg", "en_core_web_md", "en_core_web_sm"],
+        index=0,
+        help="Transformer (trf) is the most accurate but slowest. Large (lg) is a great balance."
     )
+    
+    st.sidebar.markdown("""
+    ### Model Guide
+    - **TRF**: Best for complex text and high accuracy.
+    - **LG/MD**: Good for general purpose entity extraction.
+    - **SM**: High speed, lower accuracy.
+    """)
     
     # Load model
     nlp = load_model(model_choice)
@@ -128,7 +189,7 @@ def main():
                             "Description": spacy.explain(ent.label_)
                         })
                     df = pd.DataFrame(data)
-                    st.dataframe(df, use_container_width=True)
+                    st.dataframe(df, width="stretch")
                     
                     # Download option
                     csv = df.to_csv(index=False)

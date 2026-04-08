@@ -2,13 +2,24 @@ import spacy
 import re
 
 class EntityRecognizer:
-    def __init__(self, model="en_core_web_lg"):
-        """Initialize the NER model with larger model for better accuracy."""
+    def __init__(self, model="en_core_web_trf"):
+        """Initialize with best available model (Transformer by default)."""
         try:
             self.nlp = spacy.load(model)
+            print(f"Successfully loaded {model}")
         except:
-            print(f"Model {model} not found. Falling back to en_core_web_sm")
-            self.nlp = spacy.load("en_core_web_sm")
+            fallbacks = ["en_core_web_lg", "en_core_web_sm"]
+            success = False
+            for fb in fallbacks:
+                try:
+                    self.nlp = spacy.load(fb)
+                    print(f"Model {model} not found. Fell back to {fb}")
+                    success = True
+                    break
+                except:
+                    continue
+            if not success:
+                raise RuntimeError("No spaCy models found. Run setup instructions in README.")
     
     def preprocess_text(self, text):
         """Clean and normalize text for better entity recognition."""
